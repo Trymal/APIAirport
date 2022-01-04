@@ -81,15 +81,15 @@ var MAP_API = {
 		edit.innerHTML = `<span style="cursor: pointer; margin-right: 5px;"><img width="20" src="./img/edit.svg"></span>`
 		trash.innerHTML = `<span style="cursor: pointer; margin-right: 5px;"><img width="20" src="./img/trash.svg"></span>`
 
-		coords = { lat: parseFloat(airport.latitude), lng: parseFloat(airport.longitude)}
+		const coords = { lat: parseFloat(airport.latitude), lng: parseFloat(airport.longitude)}
 
 		//Update form in infow Window
 		const update = document.createElement('form')
 		update.style.display = 'flex'
 		update.style.flexDirection = 'column'
 		const content = `<input type="text" id="newAirport" name="changeAirport" value=${airport.name}>
-				<input type="text" id="lat" name="lat" value="${coords.lat}" disabled>
-				<input type="text" id="lng" name="lng" value="${coords.lng}" disabled>
+				<input type="text" id="lat" name="lat" value="${coords.lat}">
+				<input type="text" id="lng" name="lng" value="${coords.lng}">
 				<button type="submit">Update</button>`
 		update.innerHTML = content
 		
