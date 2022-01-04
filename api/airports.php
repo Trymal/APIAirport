@@ -9,6 +9,9 @@ $airports = new Airports($db);
 // TODO Check 
 
 switch ($_SERVER['REQUEST_METHOD']) {
+    /**
+     * Get all airports and write result in JSON format
+     */
     case "GET":
         $airpts = $airports->read();
         echo(json_encode(
@@ -19,14 +22,28 @@ switch ($_SERVER['REQUEST_METHOD']) {
             ]
         ));
         break;
+        /**
+         * If all properties needed are present, call the API to add an aiport.
+         * Else write an error
+         */
     case "POST":
         $data = json_decode(file_get_contents("php://input"));
         if( isset($data->name, $data->latitude, $data->longitude)) {
-            $airports->create($data);
-            echo(json_encode(array(
-                "code" => 200,
-                "message" => "Airport added"
-            )));
+            $airports->name = $data->name;
+            $airports->latitude = $data->latitude;
+            $airports->longitude = $data->longitude;
+            $airpts = $airports->create();
+            // echo(json_encode(array(
+            //     "code" => 200,
+            //     "message" => "Airport added"
+            // )));
+            echo(json_encode(
+                [
+                    'code' => 200,
+                    'resultLength' => sizeof($airpts),
+                    'data' => $airpts
+                ]
+            ));
         } else {
             http_response_code(400);
             echo(json_encode(array(
@@ -35,6 +52,10 @@ switch ($_SERVER['REQUEST_METHOD']) {
             )));
         }
         break;
+        /**
+         * If all properties needed are present, call the API to update an aiport.
+         * Else write an error
+         */
     case "PUT":
         $data = json_decode(file_get_contents("php://input"));
         if (!isset($_GET['id']) || !isset($data->name, $data->latitude, $data->longitude)){
@@ -44,15 +65,29 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 "message" => "Missing parameter (id, name, latitude, longitude needed)"
             )));
         } else {
-            $airports->update($_GET['id'], $data);
-            echo(json_encode(array(
-                "code" => 200,
-                "message" => "Airport updated"
-            )));
+            $airports->id = $_GET['id'];
+            $airports->name = $data->name;
+            $airports->latitude = $data->latitude;
+            $airports->longitude = $data->longitude;
+            $airpts = $airports->update();
+            // echo(json_encode(array(
+            //     "code" => 200,
+            //     "message" => "Airport updated"
+            // )));
+            echo(json_encode(
+                [
+                    'code' => 200,
+                    'resultLength' => sizeof($airpts),
+                    'data' => $airpts
+                ]
+            ));
         }
         break;
+        /**
+         * If id property needed is present, call the API to add an aiport.
+         * Else write an error
+         */
     case "DELETE":
-        var_dump(gettype($_GET['id']));
         if (!isset($_GET['id'])){
             http_response_code(400);
             echo(json_encode(array(
@@ -60,11 +95,19 @@ switch ($_SERVER['REQUEST_METHOD']) {
                 "message" => "Missing parameter (id (int) needed)"
             )));
         } else {
-            $airports->delete($_GET['id']);
-            echo(json_encode(array(
-                "code" => 200,
-                "message" => "Airport suppressed"
-            )));
+            $airports->id = $_GET['id'];
+            $airpts = $airports->delete();
+            // echo(json_encode(array(
+            //     "code" => 200,
+            //     "message" => "Airport suppressed"
+            // )));
+            echo(json_encode(
+                [
+                    'code' => 200,
+                    'resultLength' => sizeof($airpts),
+                    'data' => $airpts
+                ]
+            ));
         }
         break;
     default:
@@ -72,5 +115,3 @@ switch ($_SERVER['REQUEST_METHOD']) {
         echo(json_encode(['message' => 'Method Not Allowed']));
         break;
 }
-
-// echo "GET Airports";
