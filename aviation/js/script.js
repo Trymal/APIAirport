@@ -1,8 +1,8 @@
 var formLogin = document.querySelector('.form-login')
 var MAP_API = {
 
-	AVIATION_API_URL: "http://localhost/API/api/airports",
-	LOGIN_API_URL: "http://localhost/API/api/user",
+	AVIATION_API_URL: "http://localhost/APIAirport/api/airports",
+	LOGIN_API_URL: "http://localhost/APIAirport/api/user",
 
 	infoWindow : null,
 	map : null,
@@ -96,6 +96,7 @@ var MAP_API = {
 					formLogin.innerHTML = `<h4 class="h4">Hi ${user.login} !</h4>`
 					this.userStatus = data.status;
 					this.userToken = data.token;
+					this.addAirport();
 					this.fetchData()
 					return;
 				}
