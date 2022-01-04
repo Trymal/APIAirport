@@ -1,11 +1,15 @@
+var formLogin = document.querySelector('.form-login')
 var MAP_API = {
 
-	AVIATION_API_URL: "http://cy.me/API/api/airports",
+	AVIATION_API_URL: "http://localhost/API/api/airports",
+	LOGIN_API_URL: "http://localhost/API/api/user",
 
 	infoWindow : null,
 	map : null,
 	airports: null,
 	markers: [],
+	userStatus: null,
+	userToken: null,
 
 	initMap : function () {
 
@@ -15,6 +19,18 @@ var MAP_API = {
 
 		this.buildMap();
 		this.fetchData();
+		this.initFormLogin();
+	},
+
+	initFormLogin: function(){
+		const form = document.querySelector('.form-login')
+
+		form.addEventListener("submit", (e) => {
+			e.preventDefault()
+			const login = form.elements["login"].value;
+			const password = form.elements["password"].value;
+			this.login({login, password})
+		})
 	},
 
 	buildMap : function () {
@@ -31,12 +47,17 @@ var MAP_API = {
 
 	},
 
-	fetchData : async function (url = this.AVIATION_API_URL , initObject = {}) {
+	fetchData : async function (url = this.AVIATION_API_URL , initObject = {
+		method: "GET",
+		mode: 'cors',
+		headers: new Headers({
+			"Authorization": this.userToken
+		})
+	}) {
 
 		/**
 		 * Fetch data from API, empty markers and airports and append new elements
 		 */
-
 		fetch(url, initObject)
 		.then(async (response) => {
 			return await response.json()
@@ -56,6 +77,39 @@ var MAP_API = {
 		})
 	},
 
+	/**
+	 * Fetch API to login user
+	 * @param { object } user 
+	 * @return { void }
+	 */
+	 login(user){
+		fetch(this.LOGIN_API_URL, {
+			method: "POST",
+			body: JSON.stringify(user)
+		})
+		.then(function(res){
+			return res.json()
+		})
+		.then((data) => {
+			if(data && data.code == 200){
+				if(data.success){
+					formLogin.innerHTML = `<h4 class="h4">Hi ${user.login} !</h4>`
+					this.userStatus = data.status;
+					this.userToken = data.token;
+					this.fetchData()
+					return;
+				}
+				formLogin.querySelector('.alert').innerHTML = data.message
+				formLogin.querySelector('.alert').classList.remove('d-none')
+			}else{
+				alert(data.message)
+			}
+		})
+		.catch(function(error) {
+			console.log('Error in fetch: ' + error.message);
+		});
+	},
+
 	appendElementToList : function ( airport ) {
 
 		/**
@@ -68,92 +122,94 @@ var MAP_API = {
 		const el = document.createElement('li')
 		el.style.display = 'flex'
 		el.style.justifyContent = 'space-between'
-		el.innerHTML = `<span>${airport.name}</span>
+		el.style.alignItems = 'center'
+		el.innerHTML = `<span style="max-width:150px;overflow:hidden;">${airport.name}</span>
 		<div style="display: flex;align-items: center;">
 			<div class='edit'></div>
 			<div class='trash'></div>
 		</div>`
 		
-		//Edit and trash buttons
-		const edit = document.createElement('div')
-		const trash = document.createElement('div')
-		
-		edit.innerHTML = `<span style="cursor: pointer; margin-right: 5px;"><img width="20" src="./img/edit.svg"></span>`
-		trash.innerHTML = `<span style="cursor: pointer; margin-right: 5px;"><img width="20" src="./img/trash.svg"></span>`
-
 		const coords = { lat: parseFloat(airport.latitude), lng: parseFloat(airport.longitude)}
-
-		//Update form in infow Window
-		const update = document.createElement('form')
-		update.style.display = 'flex'
-		update.style.flexDirection = 'column'
-		const content = `<input type="text" id="newAirport" name="changeAirport" value=${airport.name}>
-				<input type="text" id="lat" name="lat" value="${coords.lat}">
-				<input type="text" id="lng" name="lng" value="${coords.lng}">
-				<button type="submit">Update</button>`
-		update.innerHTML = content
 		
-		update.addEventListener('submit', (e) => {
-			e.preventDefault()
-			const name = update.elements.namedItem('changeAirport').value;
-			const lat = update.elements.namedItem('lat').value;
-			const lng = update.elements.namedItem('lng').value;
-
-			let initObject = { 
-				method: 'PUT',
-				mode: 'cors',
-				headers: new Headers(),
-				body: JSON.stringify({
-					name: name,
-					latitude: lat,
-					longitude: lng
+		if(['edit', 'admin'].includes(this.userStatus)){
+			//Update form in infow Window
+			const edit = document.createElement('div')
+			edit.innerHTML = `<span style="cursor: pointer; margin-right: 5px;"><img width="20" src="./img/edit.svg"></span>`
+	
+			const update = document.createElement('form')
+			update.style.display = 'flex'
+			update.style.flexDirection = 'column'
+			const content = `<input type="text" id="newAirport" name="changeAirport" value=${airport.name}>
+					<input type="text" id="lat" name="lat" value="${coords.lat}">
+					<input type="text" id="lng" name="lng" value="${coords.lng}">
+					<button type="submit">Update</button>`
+			update.innerHTML = content
+			
+			update.addEventListener('submit', (e) => {
+				e.preventDefault()
+				const name = update.elements.namedItem('changeAirport').value;
+				const lat = update.elements.namedItem('lat').value;
+				const lng = update.elements.namedItem('lng').value;
+	
+				let initObject = { 
+					method: 'PUT',
+					mode: 'cors',
+					headers: new Headers({"Authorization": this.userToken}),
+					body: JSON.stringify({
+						name: name,
+						latitude: lat,
+						longitude: lng
+					})
+				};
+				this.fetchData( this.AVIATION_API_URL + `?id=${airport.id}`, initObject );
+				this.infoWindow.close()
+			})
+			edit.addEventListener('click', () => {
+				if (this.infoWindow) this.infoWindow.close()
+				this.infoWindow = new google.maps.InfoWindow({
+					content: update,
+					position: coords
 				})
-			};
-			this.fetchData( this.AVIATION_API_URL + `?id=${airport.id}`, initObject );
-			this.infoWindow.close()
-		})
+				this.infoWindow.open({
+					map: this.map
+				})
+			})
+			el.querySelector(".edit").appendChild(edit)
+		}
 
-		//Delete info Window
-		const deleteConfirm = document.createElement('div')
-		const deleteButton = document.createElement('button')
-		deleteConfirm.innerHTML = `
-			<h1>Do you want to delete ${airport.name} ?</h1>
-		`
-		deleteButton.innerHTML = 'Confirm'
-		deleteButton.addEventListener('click', () => {
-			let initObject = { 
-				method: 'DELETE',
-				mode: 'cors',
-				headers: new Headers(),
-			};
-			this.fetchData( this.AVIATION_API_URL + `?id=${airport.id}`, initObject );
-			this.infoWindow.close()
-		})
-		deleteConfirm.appendChild(deleteButton)
-		
-		edit.addEventListener('click', () => {
-			if (this.infoWindow) this.infoWindow.close()
-			this.infoWindow = new google.maps.InfoWindow({
-				content: update,
-				position: coords
+		if(['admin'].includes(this.userStatus)){
+			//Delete info Window
+			const trash = document.createElement('div')
+			trash.innerHTML = `<span style="cursor: pointer; margin-right: 5px;"><img width="20" src="./img/trash.svg"></span>`
+	
+			const deleteConfirm = document.createElement('div')
+			const deleteButton = document.createElement('button')
+			deleteConfirm.innerHTML = `
+				<h1>Do you want to delete ${airport.name} ?</h1>
+			`
+			deleteButton.innerHTML = 'Confirm'
+			deleteButton.addEventListener('click', () => {
+				let initObject = { 
+					method: 'DELETE',
+					mode: 'cors',
+					headers: new Headers({"Authorization": this.userToken}),
+				};
+				this.fetchData( this.AVIATION_API_URL + `?id=${airport.id}`, initObject );
+				this.infoWindow.close()
 			})
-			this.infoWindow.open({
-				map: this.map
+			deleteConfirm.appendChild(deleteButton)
+			trash.addEventListener('click', () => {
+				if (this.infoWindow) this.infoWindow.close()
+				this.infoWindow = new google.maps.InfoWindow({
+					content: deleteConfirm,
+					position: coords
+				})
+				this.infoWindow.open({
+					map: this.map
+				})
 			})
-		})
-		trash.addEventListener('click', () => {
-			if (this.infoWindow) this.infoWindow.close()
-			this.infoWindow = new google.maps.InfoWindow({
-				content: deleteConfirm,
-				position: coords
-			})
-			this.infoWindow.open({
-				map: this.map
-			})
-		})
-		
-		el.querySelector(".edit").appendChild(edit)
-		el.querySelector(".trash").appendChild(trash)
+			el.querySelector(".trash").appendChild(trash)
+		}
 
 		airportsList.appendChild(el)
 		el.addEventListener('click', () => {
@@ -169,52 +225,54 @@ var MAP_API = {
 	 * Form to add a new airport
 	 */
 	addAirport: function() {
-		//Disable default double click
-		this.map.setOptions({disableDoubleClickZoom: true})
-		//Double click event
-		this.map.addListener('dblclick', (e) => {
-			const coords = e.latLng.toJSON()
-			//Template
-			const el = document.createElement("form");
-			el.style.display = 'flex'
-			el.style.flexDirection = 'column'
-			const content = `<input type="text" id="newAirport" name="newAirport">
-					<input type="text" id="lat" name="lat" value="${coords.lat}" disabled>
-					<input type="text" id="lng" name="lng" value="${coords.lng}" disabled>
-					<button type="submit">Add</button>`
-			el.innerHTML = content
-
-			//Info Window
-			if (this.infoWindow) this.infoWindow.close()
-			this.infoWindow = new google.maps.InfoWindow({
-				content: el,
-				position: coords
+		if (['edit', 'admin'].includes(this.userStatus)) {
+			//Disable default double click
+			this.map.setOptions({disableDoubleClickZoom: true})
+			//Double click event
+			this.map.addListener('dblclick', (e) => {
+				const coords = e.latLng.toJSON()
+				//Template
+				const el = document.createElement("form");
+				el.style.display = 'flex'
+				el.style.flexDirection = 'column'
+				const content = `<input type="text" id="newAirport" name="newAirport">
+						<input type="text" id="lat" name="lat" value="${coords.lat}" disabled>
+						<input type="text" id="lng" name="lng" value="${coords.lng}" disabled>
+						<button type="submit">Add</button>`
+				el.innerHTML = content
+	
+				//Info Window
+				if (this.infoWindow) this.infoWindow.close()
+				this.infoWindow = new google.maps.InfoWindow({
+					content: el,
+					position: coords
+				})
+				this.infoWindow.open({
+					map: this.map
+				})
+				
+				//Form event
+				el.addEventListener('submit', (e) => {
+					e.preventDefault()
+					const name = el.elements.namedItem('newAirport').value;
+					const lat = el.elements.namedItem('lat').value;
+					const lng = el.elements.namedItem('lng').value;
+	
+					let initObject = { 
+						method: 'POST',
+						mode: 'cors',
+						headers: new Headers({"Authorization": this.userToken}),
+						body: JSON.stringify({
+							name: name,
+							latitude: lat,
+							longitude: lng
+						})
+					};
+					this.fetchData( this.AVIATION_API_URL, initObject );
+					this.infoWindow.close()
+				})
 			})
-			this.infoWindow.open({
-				map: this.map
-			})
-			
-			//Form event
-			el.addEventListener('submit', (e) => {
-				e.preventDefault()
-				const name = el.elements.namedItem('newAirport').value;
-				const lat = el.elements.namedItem('lat').value;
-				const lng = el.elements.namedItem('lng').value;
-
-				let initObject = { 
-					method: 'POST',
-					mode: 'cors',
-					headers: new Headers(),
-					body: JSON.stringify({
-						name: name,
-						latitude: lat,
-						longitude: lng
-					})
-				};
-				this.fetchData( this.AVIATION_API_URL, initObject );
-				this.infoWindow.close()
-			})
-		})
+		}
 	},
 
 	appendMarkerToMap: function( airport ) {

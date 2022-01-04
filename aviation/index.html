@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     
     <script
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDKKM12U3DGYq4JUbpUwcaSQh_Vy4bI2nk&callback=MAP_API.initMap&libraries=&v=weekly"
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDKKM12U3DGYq4JUbpUwcaSQh_Vy4bI2nk&region=UK&language=en&callback=MAP_API.initMap&libraries=&v=weekly"
       defer
     ></script>
     
@@ -17,7 +17,19 @@
   <body>
     <div id="map"></div>
     <div id="airports">
-      <h4>Liste des aéroports</h4>
+      <div id="loginPart" class="mb-2">
+        
+        <form class="form-login">
+          <h5>Log in</h5>
+          <div class="alert d-none"></div>
+          
+          <input name="login" type="text" placeholder="Login" autocomplete="off"/>
+          <input name="password" type="password" placeholder="Password" autocomplete="off"/>
+          <button>Log in</button>
+        </form>
+
+      </div>
+      <h4>Airports list</h4>
       <ul id="airports-list"></ul>
     </div>
     <script src="./js/script.js"></script>
